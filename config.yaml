@@ -1,0 +1,130 @@
+project_name: &_project_name !ENV "${LOGNAME}_bfn_sbdd"
+#project_name: "root_bfn_sbdd"
+#exp_name: &_exp_name !SUB ${exp_name}
+#revision: &_revision !SUB ${revision}
+exp_name: &_exp_name "test11"
+revision: &_revision "test22"
+#exp_name: "test11"
+#revision: "test22"
+debug: !SUB false
+no_wandb: !SUB true
+wandb_resume_id: !SUB null
+logging_level: !SUB "warning"
+seed: !SUB 1234
+test_only: !SUB true
+empty_folder: !SUB false
+
+
+#model
+dynamics:
+  t_min: !SUB 0.0001
+  sigma1_coord: !SUB 0.03
+  beta1: !SUB 0.95
+  protein_atom_feature_dim: 27 #TODO
+  ligand_atom_feature_dim: 13
+  use_discrete_t: !SUB true
+  discrete_steps: !SUB 1000
+  destination_prediction: !SUB true
+  sampling_strategy: !SUB "end_back_pmf"
+  
+  # no_diff_coord: !SUB ${no_diff_coord}
+  # charge_discretised_loss: !SUB ${charge_discretised_loss}
+  node_indicator: True
+  time_emb_dim: !SUB 1
+  time_emb_mode: !SUB "simple"
+  center_pos_mode: "protein"
+  pos_init_mode: !SUB "zero"
+  net_config:
+      name: "unio2net"
+      num_blocks: 1
+      num_layers: 9
+      hidden_dim: 128
+      n_heads: 16
+      edge_feat_dim: 4  # edge type feat
+      num_r_gaussian: 20
+      knn: 32 # !
+      num_node_types: 8
+      act_fn: relu
+      norm: True
+      cutoff_mode: knn  # [radius, none]
+      ew_net_type: global  # [r, m, none]
+      num_x2h: 1
+      num_h2x: 1
+      r_max: 10.
+      x2h_out_fc: False
+      sync_twoup: False
+
+
+accounting:
+  logdir: &_logdir !PATHJOIN ["./logs/", *_project_name, *_exp_name, *_revision]
+  dump_config_path: !PATHJOIN [*_logdir, "config.yaml"]
+  wandb_logdir: !PATHJOIN [*_logdir, "wandb"]
+  checkpoint_dir: !PATHJOIN [*_logdir, "checkpoints"]
+  generated_mol_dir: !PATHJOIN [*_logdir, "generated_mol"]
+  val_outputs_dir: !PATHJOIN [*_logdir, "val_outputs"]
+  test_outputs_dir: !PATHJOIN [*_logdir, "test_outputs"]
+
+
+data:
+  name: pl # pl, pl_tr
+  path: ./data/crossdocked_v1.1_rmsd1.0_pocket10
+  split:  ./data/crossdocked_pocket10_pose_split.pt
+  transform:
+    ligand_atom_mode: add_aromatic
+  with_split: True
+  atom_decoder: ['H', 'C', 'N', 'O', 'F', 'P', 'S', 'Cl']
+  colors_dic: ['#FFFFFF99', 'C7', 'C0', 'C3', 'C1', 'C4', 'C8', 'C9', ]
+  radius_dic: [0.3, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
+  normalizer_dict: 
+    pos: !SUB 2.0
+  
+
+visual:
+  save_mols: True
+  visual_nums: 10
+  visual_chain: !SUB false
+
+
+train:
+  batch_size: !SUB 8
+  num_workers: 8
+  pos_noise_std: !SUB 0
+  random_rot: !SUB false
+  val_freq: 1000
+  epochs: !SUB 2
+  resume: !SUB false
+  v_loss_weight: !SUB 1
+  ckpt_freq: 1
+  max_grad_norm: !SUB "Q"
+  optimizer: 
+    type: "adam"
+    lr: !SUB 0.0005
+    weight_decay: !SUB 0
+    beta1: 0.95
+    beta2: 0.999
+  scheduler: 
+    type: !SUB "plateau"
+    factor: 0.6
+    patience: 10
+    min_lr: 1.e-6
+    max_iters: 20000
+  ema_decay: 0.999
+
+
+evaluation:
+  ckpt_path: ./checkpoints/modified.ckpt
+  batch_size: 100
+  sample_steps: 100
+  num_samples: 1  # x-% test
+  sample_num_atoms: 'prior'  # ['prior', 'ref']
+  exp_name: "test11"
+  docking_config:
+    mode: !SUB "qvina" # ['qvina', 'vina_score', 'vina_dock']
+    protein_root: ./data/test_set1
+    exhaustiveness: 16
+  ligand_path: !SUB ${ligand_path:-null}
+  protein_path: !SUB ${protein_path:-null}
+
+
+
+
